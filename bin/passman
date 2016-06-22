@@ -1,0 +1,41 @@
+#!/usr/bin/env ruby
+
+require 'passman'
+require 'passman/version'
+require 'optparse'
+
+options = { interactive: true, progress: true, fast: false }
+
+parser = OptionParser.new do |opts|
+  opts.banner = 'Usage: crf PATH [-f] [-n] [-o]'
+
+  opts.on('-f', '--fast', 'Only checks for files of the same size') do
+    options[:fast] = true
+  end
+
+  opts.on('-n', '--no-interactive', 'Saves the first file and removes all the repetitions without asking') do
+    options[:interactive] = false
+  end
+
+  opts.on('-o', '--no-progress', 'Hides the progress bar while executing') do
+    options[:progress] = false
+  end
+
+  opts.on('-v', '--version', 'Displays version') do
+    puts "CRF Version: #{Crf::VERSION}"
+    exit
+  end
+
+  opts.on('-h', '--help', 'Displays help') do
+    puts opts
+    exit
+  end
+end
+
+parser.parse!
+
+if ARGV[0] && File.directory?(ARGV[0])
+  Crf::Checker.new(ARGV[0], options).check_repeated_files
+else
+  STDOUT.puts 'No directory specified.'
+end
