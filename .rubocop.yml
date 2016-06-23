@@ -1,6 +1,7 @@
 AllCops:
   Exclude:
     - passman.gemspec
+    - bin/passman
 
 Documentation:
   Enabled: false

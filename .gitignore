@@ -5,6 +5,7 @@
 .byebug_history
 /spec/test_files
 *.test
+*.json
 
 ### Ruby ###
 *.gem

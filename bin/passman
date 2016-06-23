@@ -1,41 +1,119 @@
 #!/usr/bin/env ruby
 
 require 'passman'
-require 'passman/version'
 require 'optparse'
+require 'colorize'
+require 'io/console'
 
-options = { interactive: true, progress: true, fast: false }
+options = {}
 
-parser = OptionParser.new do |opts|
-  opts.banner = 'Usage: crf PATH [-f] [-n] [-o]'
+begin
 
-  opts.on('-f', '--fast', 'Only checks for files of the same size') do
-    options[:fast] = true
+  parser = OptionParser.new do |opts|
+    opts.banner = 'Usage: passman [-a account] [-p password] [-f file] [-r file] [-g number] [-v] [-h]'
+
+    opts.on('-a', '--add STR', 'Account to add a password') do |account|
+      options[:account] = account
+    end
+
+    opts.on('-u', '--username STR', 'Username of the account') do |username|
+      options[:username] = username
+    end
+
+    opts.on('-p', '--password STR', 'Password to add') do |password|
+      options[:password] = password
+      options[:generate] = false
+    end
+
+    opts.on('-f', '--file STR', 'Path to the file where passwords will be saved') do |file|
+      raise ArgumentError, 'File not found' unless File.exist?(file)
+      options[:file] = file
+    end
+
+    opts.on('-r', '--retreive STR', 'Account to retreive') do |account|
+      options[:retreive] = account
+    end
+
+    opts.on('-d', '--delete STR', 'Account to remove') do |account|
+      options[:remove] = account
+    end
+
+    opts.on('-g', '--generate [N]', Integer, 'Generates a new random password of N characters, or default if N is not provided') do |length|
+      options[:length] = length
+      options[:generate] = true
+    end
+
+    opts.on('-l', '--list', 'List your saved keys') do |length|
+      options[:list] = length
+    end
+
+    opts.on('-v', '--version', 'Displays version') do
+      puts "PassMan Version: #{Passman::VERSION}"
+      exit
+    end
+
+    opts.on('-h', '--help', 'Displays help') do
+      puts opts
+      exit
+    end
   end
 
-  opts.on('-n', '--no-interactive', 'Saves the first file and removes all the repetitions without asking') do
-    options[:interactive] = false
+  parser.parse!
+
+  if options[:account]
+
+    raise ArgumentError, 'No username provided.' unless options[:username]
+    password = ''
+    if options[:password]
+      password = options[:password]
+    else
+      password = Passman.generate_password(options[:length])
+    end
+
+    if Passman.get(options[:account], options[:file])
+      print 'There is a username already stored. Do you want to overwrite it? [Y/n] '
+      overwrite = gets
+      exit unless overwrite == 'Y'
+      puts ''
+    end
+
+    print 'Insert your symmetric-key: '
+    key = STDIN.noecho(&:gets)
+    puts ''
+    Passman.add(options[:account], options[:username], Passman::Crypto.encrypt(password, key.chomp), options[:file])
+
+    puts 'Password successfully added'.colorize(:green)
+
+  elsif options[:delete]
+
+    Passman.delete(options[:delete], options[:file])
+    puts 'Password deleted'.colorize(:green)
+
+  elsif options[:list]
+
+    Passman.database(options[:file]).each do |account, data|
+      puts account.colorize(:yellow) + ' -> ' + data['username']
+    end
+
+  elsif options[:generate]
+
+    puts Passman.generate_password(options[:length])
+
+  elsif options[:retreive]
+
+    account = Passman.get(options[:retreive], options[:file])
+    print 'Insert your symmetric-key: '
+    key = STDIN.noecho(&:gets)
+    puts ''
+    puts "Account: #{options[:retreive]}, Username: #{account['username']}, Password: #{Passman::Crypto.decrypt(account['password'], key)}"
+
+  else
+
+    raise ArgumentError, 'No account provided.'
+
   end
 
-  opts.on('-o', '--no-progress', 'Hides the progress bar while executing') do
-    options[:progress] = false
-  end
-
-  opts.on('-v', '--version', 'Displays version') do
-    puts "CRF Version: #{Crf::VERSION}"
-    exit
-  end
-
-  opts.on('-h', '--help', 'Displays help') do
-    puts opts
-    exit
-  end
-end
-
-parser.parse!
-
-if ARGV[0] && File.directory?(ARGV[0])
-  Crf::Checker.new(ARGV[0], options).check_repeated_files
-else
-  STDOUT.puts 'No directory specified.'
+rescue SystemExit => exception
+rescue Exception => exception
+  puts exception.message.colorize(:red)
 end

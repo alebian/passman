@@ -4,7 +4,7 @@ $LOAD_PATH.unshift(lib) unless $LOAD_PATH.include?(lib)
 require 'passman/version'
 
 Gem::Specification.new do |spec|
-  spec.name          = 'PassMan'
+  spec.name          = 'passman'
   spec.version       = Passman::VERSION
   spec.authors       = ['Alejandro Bezdjian']
   spec.email         = 'alebezdjian@gmail.com'
