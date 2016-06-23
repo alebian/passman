@@ -4,9 +4,9 @@ require 'passman/version'
 require 'json'
 
 module Passman
-  DEFAULT_FILE = 'passman.json'.freeze
+  DEFAULT_FILE = '~/passman.json'.freeze
 
-  def self.generate_password(length)
+  def self.generate_password(length = 32)
     Passman::PasswordGenerator.generate(length / 2)
   end
 
@@ -24,7 +24,7 @@ module Passman
     write_database(db, path)
   end
 
-  def self.get(account, key, file = nil)
+  def self.get(account, file = nil)
     path = DEFAULT_FILE if file.nil?
     db = database(path)
     db[account.to_s]
