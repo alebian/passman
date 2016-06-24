@@ -4,6 +4,7 @@ require 'passman'
 require 'optparse'
 require 'colorize'
 require 'io/console'
+require 'clipboard'
 
 options = { length: 32 }
 
@@ -43,6 +44,10 @@ begin
       options[:generate] = true
     end
 
+    opts.on('-c', '--clipboard', 'Copies the password to the clipboard when you generate it or when you retreive it') do
+      options[:clipboard] = true
+    end
+
     opts.on('-l', '--list', 'List your saved keys') do |length|
       options[:list] = length
     end
@@ -70,14 +75,18 @@ begin
       password = options[:password]
     else
       password = manager.generate_password(options[:length])
-      puts "Password generated: #{password}".colorize(:yellow)
+      if options[:clipboard]
+        Clipboard.copy(password)
+        puts 'Password copied to clipboard!'.colorize(:yellow)
+      else
+        puts "Password generated: #{password}".colorize(:yellow)
+      end
     end
 
     if manager.exist?(options[:account])
       print 'There is a username already stored. Do you want to overwrite it? [Y/n] '
       overwrite = gets
-      exit unless overwrite == 'Y'
-      puts ''
+      exit unless overwrite.chomp == 'Y'
     end
 
     print 'Insert your symmetric-key:'
@@ -103,7 +112,14 @@ begin
 
   elsif options[:generate]
 
-    puts manager.generate_password(options[:length])
+    password = manager.generate_password(options[:length])
+
+    if options[:clipboard]
+      Clipboard.copy(password)
+      puts 'Password copied to clipboard!'.colorize(:yellow)
+    else
+      puts "Password generated: #{password}".colorize(:yellow)
+    end
 
   elsif options[:retreive]
 

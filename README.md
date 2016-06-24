@@ -57,6 +57,13 @@ You can delete your accounts:
 passman -d Twitter
 ```
 
+For any password generated, you can combine the parameter -c to copy it in your clipboard, this way it won't be stored in your terminal history.
+
+```
+passman -g -code
+#=> Password copied to clipboard!
+```
+
 ## Contributing
 
 1. Fork it
