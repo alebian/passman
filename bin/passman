@@ -5,7 +5,7 @@ require 'optparse'
 require 'colorize'
 require 'io/console'
 
-options = {}
+options = { length: 32 }
 
 begin
 
@@ -39,7 +39,7 @@ begin
     end
 
     opts.on('-g', '--generate [N]', Integer, 'Generates a new random password of N characters, or default if N is not provided') do |length|
-      options[:length] = length
+      options[:length] = length unless length.nil? || length.empty?
       options[:generate] = true
     end
 
@@ -48,7 +48,7 @@ begin
     end
 
     opts.on('-v', '--version', 'Displays version') do
-      puts "PassMan Version: #{Passman::VERSION}"
+      puts "PassMan Version: #{Passman::VERSION}".colorize(:yellow)
       exit
     end
 
@@ -60,52 +60,73 @@ begin
 
   parser.parse!
 
+  manager = Passman::Manager.new(options[:file])
+  key = ''
+  password = ''
+
   if options[:account]
 
-    raise ArgumentError, 'No username provided.' unless options[:username]
-    password = ''
     if options[:password]
       password = options[:password]
     else
-      password = Passman.generate_password(options[:length])
+      password = manager.generate_password(options[:length])
+      puts "Password generated: #{password}".colorize(:yellow)
     end
 
-    if Passman.get(options[:account], options[:file])
+    if manager.exist?(options[:account])
       print 'There is a username already stored. Do you want to overwrite it? [Y/n] '
       overwrite = gets
       exit unless overwrite == 'Y'
       puts ''
     end
 
-    print 'Insert your symmetric-key: '
+    print 'Insert your symmetric-key:'
     key = STDIN.noecho(&:gets)
+    raise ArgumentError, 'Key cannot be empty' if key.empty?
     puts ''
-    Passman.add(options[:account], options[:username], Passman::Crypto.encrypt(password, key.chomp), options[:file])
 
+    manager.add(options[:account], options[:username], password, key)
     puts 'Password successfully added'.colorize(:green)
 
   elsif options[:delete]
 
-    Passman.delete(options[:delete], options[:file])
+    manager.delete(options[:delete])
     puts 'Password deleted'.colorize(:green)
 
   elsif options[:list]
 
-    Passman.database(options[:file]).each do |account, data|
+    list = manager.list
+    puts 'No accounts stored' if list.empty?
+    list.each do |account, data|
       puts account.colorize(:yellow) + ' -> ' + data['username']
     end
 
   elsif options[:generate]
 
-    puts Passman.generate_password(options[:length])
+    puts manager.generate_password(options[:length])
 
   elsif options[:retreive]
 
-    account = Passman.get(options[:retreive], options[:file])
-    print 'Insert your symmetric-key: '
+    unless manager.exist?(options[:retreive])
+      puts "The account doesn't exist"
+      exit
+    end
+
+    print 'Insert your symmetric-key:'
     key = STDIN.noecho(&:gets)
+    raise ArgumentError, 'Key cannot be empty' if key.empty?
     puts ''
-    puts "Account: #{options[:retreive]}, Username: #{account['username']}, Password: #{Passman::Crypto.decrypt(account['password'], key)}"
+    account = manager.get(options[:retreive], key)
+    puts(
+      'Account: ' + "#{account[0]}".colorize(:yellow) +
+      ', Username: ' + "#{account[1]['username']}".colorize(:yellow) +
+      ', Password: ' + "#{account[1]['password']}".colorize(:yellow)
+    )
+
+  elsif options[:remove]
+
+    manager.delete(options[:remove])
+    puts 'Deleted account'.colorize(:red)
 
   else
 
