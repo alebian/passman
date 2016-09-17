@@ -1,0 +1,162 @@
+#!/usr/bin/env ruby
+
+require 'colorize'
+require 'passman'
+require 'json'
+require 'clipboard'
+require 'byebug'
+
+DEFAULT_PATH = File.expand_path('~') + '/passman.json'
+@manager = nil
+
+def main_menu(message, is_error)
+  system 'clear'
+  puts "\n _____              __  __".colorize(:light_yellow)
+  puts "|  __ \\            |  \\/  |            ".colorize(:light_yellow)
+  puts "| |__) |_ _ ___ ___| \\  / | __ _ _ __  ".colorize(:light_yellow)
+  puts "|  ___/ _` / __/ __| |\\/| |/ _` | '_ \\ ".colorize(:light_yellow)
+  puts "| |  | (_| \\__ \\__ \\ |  | | (_| | | | |".colorize(:light_yellow)
+  puts "|_|   \\__,_|___/___/_|  |_|\\__,_|_| |_|\n\n".colorize(:light_yellow)
+  puts "Welcome to PassMan, your password manager\n".colorize(:light_yellow)
+  unless message.nil?
+    puts message.colorize(:red) + "\n\n" if is_error
+    puts message.colorize(:green) + "\n\n" unless is_error
+  end
+  puts 'What would you like to do?'
+  puts '1) Get a previously saved password'
+  puts '2) Create a new password'
+  puts '3) Manage your saved passwords'
+  puts '4) About'
+  puts "5) Exit\n\n"
+end
+
+def load_manager
+  return true unless @manager.nil?
+  path = DEFAULT_PATH
+  unless File.exist?(DEFAULT_PATH)
+    puts "It appears that you don't have previously saved database."
+    puts "Would you like to create one or load a file stored somewhere else?"
+    print '[l/C] '
+    option = gets
+
+    case option.chomp
+    when 'l'
+      puts 'Where is your database located?'
+      new_path = gets
+      return false unless File.exist?(new_path.chomp)
+      path = new_path.chomp
+    else
+      file = File.new(path, 'w+')
+      file.write(JSON.generate({}))
+      file.close
+      print "\tcreated ".colorize(:green)
+      puts path
+    end
+  end
+  @manager = Passman::Manager.new(DEFAULT_PATH)
+end
+
+def get_saved_password
+
+end
+
+def create_password
+  puts "Good choice! Let me store your password"
+  puts 'Which account is this for? (Facebook, Google, etc)'
+  account = gets
+  puts 'What is your username for this account?'
+  username = gets
+  puts "Would you like me to create a secure password for you? (Secure passwords are harder to crack and you don't need to remind them since you are using PassMan ;))"
+  print '[n/Y] '
+  secure = gets
+  password = nil
+  case secure.chomp
+  when 'n'
+    puts 'What password would you like to use?'
+    password = gets
+  else
+    puts 'The default password length is 32 characters, is this ok for you?'
+    print '[n/Y] '
+    length = gets
+    case length.chomp
+    when 'n'
+      puts 'How many characters would you like?'
+      length = gets
+      password = @manager.generate_password(length.chomp.to_i)
+    else
+      password = @manager.generate_password
+    end
+  end
+  puts "In order to save your password encrypted, I need a secret passphrase that you can remember (you can use spaces)."
+  puts "Make it hard to guess and don't tell it to anyone!"
+  key = gets
+
+  begin
+    @manager.add(account.chomp, username.chomp, password.chomp, key.chomp)
+    puts 'Would you like to see your password now or copy it to the clipboard? (you can see it later either way)'
+    print '[s/C] '
+    copy = gets
+    case copy.chomp
+    when 's'
+      print 'Your password is: '
+      puts password
+      gets
+    else
+      Clipboard.copy(password)
+      puts 'Password copied to clipboard!'
+      gets
+    end
+    ['Password stored successfully', false]
+  rescue
+    ['There was an error saving your password', true]
+  end
+end
+
+def manage_passwords
+
+end
+
+def about
+
+end
+
+@execute = true
+message = nil
+is_error = false
+while(@execute)
+  main_menu(message, is_error)
+  option = gets
+
+  case option.chomp
+  when '1'
+    # Get password
+    if load_manager
+      message, is_error = get_saved_password
+    else
+      message, is_error = ['Database not found', true]
+    end
+
+  when '2'
+    # Create password
+    if load_manager
+      message, is_error = create_password
+    else
+      message, is_error = ['Database not found', true]
+    end
+
+  when '3'
+    # Manage passwords
+    if load_manager
+      message, is_error = manage_passwords
+    else
+      message, is_error = ['Database not found', true]
+    end
+
+  when '4'
+    # About
+    about
+  when '5'
+    # Exit
+    @execute = false
+  end
+end
