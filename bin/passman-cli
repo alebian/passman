@@ -4,136 +4,178 @@ require 'colorize'
 require 'passman'
 require 'json'
 require 'clipboard'
-require 'byebug'
+require 'highline'
 
 DEFAULT_PATH = File.expand_path('~') + '/passman.json'
+
+@cli = HighLine.new
+@database_path = DEFAULT_PATH
 @manager = nil
 
 def main_menu(message, is_error)
   system 'clear'
-  puts "\n _____              __  __".colorize(:light_yellow)
-  puts "|  __ \\            |  \\/  |            ".colorize(:light_yellow)
-  puts "| |__) |_ _ ___ ___| \\  / | __ _ _ __  ".colorize(:light_yellow)
-  puts "|  ___/ _` / __/ __| |\\/| |/ _` | '_ \\ ".colorize(:light_yellow)
-  puts "| |  | (_| \\__ \\__ \\ |  | | (_| | | | |".colorize(:light_yellow)
-  puts "|_|   \\__,_|___/___/_|  |_|\\__,_|_| |_|\n\n".colorize(:light_yellow)
-  puts "Welcome to PassMan, your password manager\n".colorize(:light_yellow)
+  puts '--------------------------------------------------------------------------------'.colorize(:light_yellow)
+  puts '|                                                                              |'.colorize(:light_yellow)
+  puts '|                      _____              __  __                               |'.colorize(:light_yellow)
+  puts '|                     |  __ \\            |  \\/  |                              |'.colorize(:light_yellow)
+  puts '|                     | |__) |_ _ ___ ___| \\  / | __ _ _ __                    |'.colorize(:light_yellow)
+  puts "|                     |  ___/ _` / __/ __| |\\/| |/ _` | '_ \\                   |".colorize(:light_yellow)
+  puts '|                     | |  | (_| \\__ \\__ \\ |  | | (_| | | | |                  |'.colorize(:light_yellow)
+  puts '|                     |_|   \\__,_|___/___/_|  |_|\\__,_|_| |_|                  |'.colorize(:light_yellow)
+  puts '|                                                                              |'.colorize(:light_yellow)
+  puts '|                    Welcome to PassMan, your password manager                 |'.colorize(:light_yellow)
+  puts '|                                                                              |'.colorize(:light_yellow)
+  puts '--------------------------------------------------------------------------------'.colorize(:light_yellow)
   unless message.nil?
+    puts ''
     puts message.colorize(:red) + "\n\n" if is_error
     puts message.colorize(:green) + "\n\n" unless is_error
   end
-  puts 'What would you like to do?'
-  puts '1) Get a previously saved password'
-  puts '2) Create a new password'
-  puts '3) Manage your saved passwords'
-  puts '4) About'
-  puts "5) Exit\n\n"
+  puts "Options:\n".colorize(:light_yellow)
+  puts '  1) Get a previously saved password'
+  puts '  2) Create a new password'
+  puts '  3) Manage your saved passwords'
+  puts '  4) About'
+  puts "  5) Exit\n\n"
 end
 
 def load_manager
   return true unless @manager.nil?
-  path = DEFAULT_PATH
-  unless File.exist?(DEFAULT_PATH)
+  unless File.exist?(@database_path)
     puts "It appears that you don't have previously saved database."
-    puts "Would you like to create one or load a file stored somewhere else?"
-    print '[l/C] '
-    option = gets
+    puts 'Would you like to create one or load a file stored somewhere else?'
+    option = @cli.ask '[l/C] '
 
-    case option.chomp
+    case option
     when 'l'
-      puts 'Where is your database located?'
-      new_path = gets
-      return false unless File.exist?(new_path.chomp)
-      path = new_path.chomp
+      new_path = @cli.ask 'Where is your database located? '
+      return false unless File.exist?(new_path)
+      @database_path = new_path
     else
-      file = File.new(path, 'w+')
+      file = File.new(@database_path, 'w+')
       file.write(JSON.generate({}))
       file.close
       print "\tcreated ".colorize(:green)
-      puts path
+      puts @database_path
+      puts "\nRemember to back up this file once in a while!\n\n".colorize(:light_yellow)
     end
   end
-  @manager = Passman::Manager.new(DEFAULT_PATH)
+  @manager = Passman::Manager.new(@database_path)
 end
 
-def get_saved_password
+def print_accounts(database)
+  puts "You have this accounts in your database:\n\n"
+  database.each do |account, info|
+    puts account + ' -> ' + info['username']
+  end
+  puts ''
+end
 
+def clipboard_password_prompt(password)
+  puts 'Would you like to see your password now or copy it to the clipboard?'
+  copy = @cli.ask '[s/C] '
+  case copy
+  when 's'
+    ["Your password is: #{password}", false]
+  else
+    Clipboard.copy(password)
+    ['Password copied to clipboard!', false]
+  end
+end
+
+def retreive_saved_password
+  database = JSON.parse(File.read(@database_path)) if File.exist?(@database_path)
+  return ['Failed to read database', true] if database.nil?
+  return ['Empty database', false] if database.empty?
+  print_accounts(database)
+  account = @cli.ask "Which account's password would you like me to tell you? "
+  puts "I'm going to need the secret passphrase you used when you stored it"
+  key = @cli.ask('Enter your key:  ') { |q| q.echo = '*' }
+  begin
+    response = @manager.get(account, key)
+    clipboard_password_prompt(response[1]['password'])
+  rescue
+    ['Wrong passphrase!', true]
+  end
 end
 
 def create_password
-  puts "Good choice! Let me store your password"
-  puts 'Which account is this for? (Facebook, Google, etc)'
-  account = gets
-  puts 'What is your username for this account?'
-  username = gets
-  puts "Would you like me to create a secure password for you? (Secure passwords are harder to crack and you don't need to remind them since you are using PassMan ;))"
-  print '[n/Y] '
-  secure = gets
+  puts 'Good choice! Let me store your password'
+  account = @cli.ask "Which account is this for? (Facebook, Google, etc)\n"
+  username = @cli.ask "What is your username for this account?\n"
+  puts 'Would you like me to create a secure password for you?'
+  secure = @cli.ask '[n/Y] '
   password = nil
-  case secure.chomp
+  case secure
   when 'n'
     puts 'What password would you like to use?'
-    password = gets
+    password = @cli.ask('Enter your password:   ') { |q| q.echo = '*' }
+    password_confirmation = @cli.ask('Repeat your password:  ') { |q| q.echo = '*' }
+    return ["Passwords don't match", true] if password != password_confirmation
   else
     puts 'The default password length is 32 characters, is this ok for you?'
-    print '[n/Y] '
-    length = gets
-    case length.chomp
+    length = @cli.ask '[n/Y] '
+    case length
     when 'n'
-      puts 'How many characters would you like?'
-      length = gets
-      password = @manager.generate_password(length.chomp.to_i)
+      length = @cli.ask 'How many characters would you like? '
+      password = @manager.generate_password(length.to_i)
     else
       password = @manager.generate_password
     end
   end
-  puts "In order to save your password encrypted, I need a secret passphrase that you can remember (you can use spaces)."
+  puts 'In order to save your password encrypted, I need a secret passphrase you can remember.'
   puts "Make it hard to guess and don't tell it to anyone!"
-  key = gets
+  key = @cli.ask('Enter your key:   ') { |q| q.echo = '*' }
+  key_confirmation = @cli.ask('Repeat your key:  ') { |q| q.echo = '*' }
+  return ["Keys don't match", true] if key != key_confirmation
 
   begin
-    @manager.add(account.chomp, username.chomp, password.chomp, key.chomp)
-    puts 'Would you like to see your password now or copy it to the clipboard? (you can see it later either way)'
-    print '[s/C] '
-    copy = gets
-    case copy.chomp
-    when 's'
-      print 'Your password is: '
-      puts password
-      gets
-    else
-      Clipboard.copy(password)
-      puts 'Password copied to clipboard!'
-      gets
-    end
-    ['Password stored successfully', false]
+    @manager.add(account, username, password, key)
+    response = clipboard_password_prompt(password)
+    ["Password stored successfully!\n#{response[0]}", false]
   rescue
     ['There was an error saving your password', true]
   end
 end
 
 def manage_passwords
-
+  database = JSON.parse(File.read(@database_path)) if File.exist?(@database_path)
+  return ['Failed to read database', true] if database.nil?
+  return ['Empty database', false] if database.empty?
+  print_accounts(database)
+  account = @cli.ask 'Which account would you like to delete? '
+  begin
+    @manager.delete(account)
+    ["#{account} account deleted", false]
+  rescue
+    ['Invalid account', true]
+  end
 end
 
 def about
-
+  puts "PassMan is a password manager tool that let's you easily create and store secure"
+  puts 'passwords. All of them are encrypted before saving, using AES-256 symmetric-key'
+  puts 'algorithm. The symmetric-key is provided by you and PassMan never stores it.'
+  puts 'All the generated passwords are created using a secure random algorithm.'
+  puts "For more information you can visit: https://github.com/alebian/passman\n".colorize(:light_yellow)
+  @cli.ask 'Press enter to continue '
 end
 
 @execute = true
 message = nil
 is_error = false
-while(@execute)
+while @execute
   main_menu(message, is_error)
-  option = gets
-
-  case option.chomp
+  option = @cli.ask('What would you like to do?')
+  puts ''
+  case option
   when '1'
     # Get password
     if load_manager
-      message, is_error = get_saved_password
+      message, is_error = retreive_saved_password
     else
-      message, is_error = ['Database not found', true]
+      message = 'Database not found'
+      is_error = true
     end
 
   when '2'
@@ -141,7 +183,8 @@ while(@execute)
     if load_manager
       message, is_error = create_password
     else
-      message, is_error = ['Database not found', true]
+      message = 'Database not found'
+      is_error = true
     end
 
   when '3'
@@ -149,7 +192,8 @@ while(@execute)
     if load_manager
       message, is_error = manage_passwords
     else
-      message, is_error = ['Database not found', true]
+      message = 'Database not found'
+      is_error = true
     end
 
   when '4'
@@ -158,5 +202,8 @@ while(@execute)
   when '5'
     # Exit
     @execute = false
+  else
+    message = nil
+    is_error = false
   end
 end
