@@ -16,6 +16,18 @@ Run this in your terminal:
 
 ## Usage
 
+### CLI
+
+The easiest way to use PassMan is using it's command line interface, run:
+
+```
+$ passman-cli
+```
+
+![PassMan](https://raw.githubusercontent.com/alebian/passman/master/passman-cli.png)
+
+### Commands
+
 PassMan will save your passwords in a file called 'passman.json' by default, you can tell PassMan to store  the passwords in different files.
 
 First of all you will need a 32 bit (or more) symmetric key. This will be used in the future to encrypt and decrypt your passwords but PassMan will not store that value. Everytime PassMan needs to encrypt or decrypt your passwords it will ask you for one key. You can tell PassMan to create a new secure random key if you want to:
