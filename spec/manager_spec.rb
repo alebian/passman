@@ -2,13 +2,13 @@ require 'spec_helper'
 require 'json'
 
 describe Passman::Manager do
-  let(:file_path) { './spec/passman.json' }
-  subject(:manager) { Passman::Manager.new(file_path) }
-
-  let(:account) { 'test_account' }
-  let(:username) { 'test_username' }
-  let(:password) { 'test_password' }
-  let(:key) { 'test_key' }
+  subject(:manager) { described_class.new(file_path) }
+  let(:file_path)   { './spec/passman.json' }
+  let(:account)     { 'test_account' }
+  let(:username)    { 'test_username' }
+  let(:password)    { 'test_password' }
+  let(:key)         { 'test_key' }
+  let!(:salt)       { BCrypt::Engine.generate_salt }
 
   describe '#generate_password' do
     let!(:length) { 32 }
@@ -29,10 +29,14 @@ describe Passman::Manager do
 
   describe '#add' do
     it 'stores the data' do
-      subject.add(account, username, password, key)
+      subject.add(account, username, password, key, salt)
       json = JSON.parse(File.read(file_path))
-      expect(json).to eq(account => { 'username' => username,
-                                      'password' => Passman::Crypto.encrypt(password, key) })
+      expect(json).to eq(
+        account => {
+          'username' => username,
+          'password' => Passman::Crypto.encrypt(password, key, salt: salt)
+        }
+      )
     end
 
     context 'when the account is empty' do
@@ -195,9 +199,11 @@ describe Passman::Manager do
 
   describe '#list' do
     it 'shows the data' do
-      subject.add(account, username, password, key)
+      subject.add(account, username, password, key, salt)
       expect(subject.list).to eq(
-        account => { 'username' => username, 'password' => Passman::Crypto.encrypt(password, key) }
+        account => {
+          'username' => username, 'password' => Passman::Crypto.encrypt(password, key, salt: salt)
+        }
       )
     end
 

@@ -1,10 +1,6 @@
 # PassMan - Password Manager
 [![Gem Version](https://badge.fury.io/rb/passman.svg)](https://badge.fury.io/rb/passman)
-[![Dependency Status](https://gemnasium.com/badges/github.com/alebian/passman.svg)](https://gemnasium.com/github.com/alebian/passman)
 [![Build Status](https://travis-ci.org/alebian/passman.svg)](https://travis-ci.org/alebian/passman)
-[![Code Climate](https://codeclimate.com/github/alebian/passman/badges/gpa.svg)](https://codeclimate.com/github/alebian/passman)
-[![Test Coverage](https://codeclimate.com/github/alebian/passman/badges/coverage.svg)](https://codeclimate.com/github/alebian/passman/coverage)
-[![Inline docs](http://inch-ci.org/github/alebian/passman.svg)](http://inch-ci.org/github/alebian/passman)
 
 PassMan is a command line application that stores your passwords encrypted with AES 256 symmetric-key algorithm. It also let's you save more information about your accounts such as recovery information and more.
 

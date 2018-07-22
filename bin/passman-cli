@@ -35,8 +35,7 @@ def main_menu(message, is_error)
   puts '  1) Get a previously saved password'
   puts '  2) Create a new password'
   puts '  3) Manage your saved passwords'
-  puts '  4) About'
-  puts "  5) Exit\n\n"
+  puts "  4) Exit\n\n"
 end
 
 def load_manager
@@ -152,15 +151,6 @@ def manage_passwords
   end
 end
 
-def about
-  puts "PassMan is a password manager tool that let's you easily create and store secure"
-  puts 'passwords. All of them are encrypted before saving, using AES-256 symmetric-key'
-  puts 'algorithm. The symmetric-key is provided by you and PassMan never stores it.'
-  puts 'All the generated passwords are created using a secure random algorithm.'
-  puts "For more information you can visit: https://github.com/alebian/passman\n".colorize(:light_yellow)
-  @cli.ask 'Press enter to continue '
-end
-
 @execute = true
 message = nil
 is_error = false
@@ -197,9 +187,6 @@ while @execute
     end
 
   when '4'
-    # About
-    about
-  when '5'
     # Exit
     @execute = false
   else

@@ -1,5 +1,4 @@
 require 'passman/crypto'
-require 'passman/password_generator'
 require 'json'
 
 module Passman
@@ -12,13 +11,15 @@ module Passman
     end
 
     def generate_password(length = 32)
-      Passman::PasswordGenerator.generate(length)
+      Passman::Crypto.generate_password(length)
     end
 
-    def add(account, username, password, key)
+    def add(account, username, password, key, salt = nil)
       validate_add_arguments(account, username, password, key)
       db = database
-      db[account.to_s] = { username: username, password: Passman::Crypto.encrypt(password, key) }
+      db[account.to_s] = {
+        username: username, password: Passman::Crypto.encrypt(password, key, salt: salt)
+      }
       store_data(db)
     end
 
